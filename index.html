@@ -64,7 +64,7 @@
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
     });
 
-    pose.setOptions({ modelComplexity: 0, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+    pose.setOptions({ modelComplexity: 0, smoothLandmarks: false, minDetectionConfidence: 0.3, minTrackingConfidence: 0.3 });
 
     pose.onResults((results) => {
         canvas.width = video.videoWidth;
@@ -162,3 +162,4 @@
 </body>
 
 </html>
+
