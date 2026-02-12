@@ -154,6 +154,9 @@
         if (e.target.files[0]) {
             video.src = URL.createObjectURL(e.target.files[0]);
             resetAll();
+            video.ondataavailable = () => {
+                pose.send({image: video});
+            };
         }
     });
 
@@ -162,5 +165,6 @@
 </body>
 
 </html>
+
 
 
