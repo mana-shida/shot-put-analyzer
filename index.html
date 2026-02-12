@@ -9,6 +9,20 @@
     <style>
         body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 10px; }
         .app-title { font-size: 18px; font-weight: bold; color: #f1c40f; margin-bottom: 10px; }
+        /* 説明欄のスタイル */
+        .how-to { 
+            background: #444; 
+            padding: 10px; 
+            border-radius: 8px; 
+            margin-bottom: 15px; 
+            font-size: 13px; 
+            text-align: left; 
+            line-height: 1.5;
+            display: inline-block;
+            max-width: 500px;
+            border-left: 5px solid #f1c40f;
+        }
+        
         .controls { background: #333; padding: 10px; border-radius: 10px; margin-bottom: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
         .container { position: relative; display: inline-block; background: #000; width: 100%; max-width: 500px; border-radius: 8px; overflow: hidden; }
         video { display: block; width: 100%; height: auto; background: #000; }
@@ -25,7 +39,16 @@
 </head>
 <body>
 
-    <div class="app-title">林田(manami) SHOT PUT</div>
+    <div class="app-title">林田(manami) SHOT PUT ANALYZER（棒人間と軌道）</div>
+    
+    <div class="how-to">
+        <strong>【使い方】</strong><br>
+        ① <strong>ファイルを選択</strong> で動画を読み込む<br>
+        ② <strong>再生</strong> して動きを確認（スローも可）<br>
+        ③ <strong>記録ON</strong> にすると、砲丸の軌道が描かれます<br>
+        ④ 線を消したい時は <strong>1つ戻る</strong> か <strong>全消去</strong><br>
+        ※ 動画を変えたら、下のバーを少し動かすと解析が始まります
+    </div>
     
     <div class="controls">
         <input type="file" id="videoInput" accept="video/*" style="width: 100%; margin-bottom: 8px;">
@@ -144,3 +167,4 @@
 </script>
 </body>
 </html>
+
