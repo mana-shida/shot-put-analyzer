@@ -182,16 +182,8 @@
     }
 
     function toggleSpeed() {
-        // 現在が 1.0（等速）なら 0.25（激スロー）に、
-        // すでにスローなら 1.0（等速）に戻します
-        if (video.playbackRate === 1.0) {
-            video.playbackRate = 0.25;
-            document.getElementById('speedBtn').innerText = "等速に戻す";
-            document.getElementById('speedBtn').style.background = "#ff4757"; // スロー中は赤色にして目立たせる
-        } else {
-            video.playbackRate = 1.0;
-            document.getElementById('speedBtn').innerText = "スロー";
-            document.getElementById('speedBtn').style.background = "#9b59b6"; // 元の色に戻す
+        video.playbackRate = (video.playbackRate === 1.0) ? 0.25 : 1.0;
+        document.getElementById（'speedBtn'）.innerText =（video.playbackRate ニニ=1.0） ？ "スロー"："等速
         }
     }
 
