@@ -3,49 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>林田がつくったよ。SHOT PUT</title>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <title>林田 SHOT PUT ANALYZER</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.4.1633531739/pose.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 10px; overflow-x: hidden; }
-        .app-title { font-size: 20px; font-weight: bold; color: #f1c40f; margin: 10px 0; display: inline-block; }
-        .controls { background: #333; padding: 10px; border-radius: 10px; margin-bottom: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
-        .container { position: relative; display: inline-block; background: #000; width: 100%; max-width: 800px; border-radius: 8px; overflow: hidden; }
+        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 10px; }
+        .app-title { font-size: 18px; font-weight: bold; color: #f1c40f; margin-bottom: 10px; }
+        .controls { background: #333; padding: 10px; border-radius: 10px; margin-bottom: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+        .container { position: relative; display: inline-block; background: #000; width: 100%; max-width: 500px; border-radius: 8px; overflow: hidden; }
         video { display: block; width: 100%; height: auto; }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; }
-        button { padding: 12px 10px; cursor: pointer; border: none; border-radius: 8px; font-weight: bold; font-size: 13px; flex: 1 1 30%; min-width: 90px; color: white; touch-action: manipulation; }
+        button { padding: 12px 8px; cursor: pointer; border: none; border-radius: 8px; font-weight: bold; font-size: 12px; color: white; flex: 1; min-width: 80px; touch-action: manipulation; }
         .btn-play { background: #2ecc71; }
         .btn-speed { background: #9b59b6; }
         .btn-track { background: #3498db; }
         .btn-undo { background: #f39c12; }
         .btn-reset { background: #e74c3c; }
-        .seekbar-container { width: 100%; margin: 15px 0; display: flex; align-items: center; gap: 10px; }
-        input[type="range"] { flex-grow: 1; height: 15px; accent-color: #f1c40f; }
-        .guide { color: #f1c40f; font-size: 11px; margin: 5px 0; width: 100%; font-weight: bold; }
+        input[type="range"] { width: 100%; height: 25px; margin: 10px 0; accent-color: #f1c40f; }
+        .status { color: #f1c40f; font-size: 11px; margin-top: 5px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="app-title">林田(manami)がつくったよ。SHOT PUT</div>
+    <div class="app-title">林田(manami) SHOT PUT ⚡軽量版</div>
     
     <div class="controls">
-        <input type="file" id="videoInput" accept="video/*" style="width: 100%; margin-bottom: 10px;">
-        <button id="playBtn" class="btn-play" onclick="togglePlay()">再生/停止</button>
-        <button class="btn-speed" onclick="toggleSpeed()" id="speedBtn">スロー</button>
-        <button id="trackBtn" class="btn-track" onclick="toggleTracking()">記録: OFF</button>
-        <button class="btn-undo" onclick="undoTrajectory()">1つ戻る</button>
-        <button class="btn-reset" onclick="resetAll()">全消去</button>
-        <div class="guide">動画を変えたら一度停止してシークバーを動かしてね</div>
+        <input type="file" id="videoInput" accept="video/*" style="width: 100%; margin-bottom: 8px;">
+        <button onclick="togglePlay()" class="btn-play">再生/停止</button>
+        <button onclick="toggleSpeed()" class="btn-speed" id="speedBtn">スロー</button>
+        <button onclick="toggleTracking()" class="btn-track" id="trackBtn">記録: OFF</button>
+        <button onclick="undoTrajectory()" class="btn-undo">1つ戻る</button>
+        <button onclick="resetAll()" class="btn-reset">全消去</button>
     </div>
 
-    <div class="seekbar-container">
-        <input type="range" id="seekBar" value="0" step="0.01">
-    </div>
+    <input type="range" id="seekBar" value="0" step="0.001">
 
     <div class="container">
-        <video id="inputVideo" muted playsinline></video>
+        <video id="inputVideo" muted playsinline crossorigin="anonymous"></video>
         <canvas id="outputCanvas"></canvas>
     </div>
+    <div class="status" id="loadStatus">【！】動画を選んで、シークバーを動かしてね</div>
 
 <script>
     const video = document.getElementById('inputVideo');
@@ -53,54 +50,53 @@
     const ctx = canvas.getContext('2d');
     const seekBar = document.getElementById('seekBar');
     const trackBtn = document.getElementById('trackBtn');
-    const speedBtn = document.getElementById('speedBtn');
+    const loadStatus = document.getElementById('loadStatus');
 
     let trajectory = []; 
     let isTracking = false;
 
+    // スマホでも絶対に動くための軽量設定
     const pose = new Pose({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
     });
 
-    pose.setOptions({ modelComplexity: 0, smoothLandmarks: false, minDetectionConfidence: 0.3, minTrackingConfidence: 0.3 });
+    pose.setOptions({
+        modelComplexity: 0, // 最軽量
+        smoothLandmarks: false, // 計算をサボる
+        minDetectionConfidence: 0.4,
+        minTrackingConfidence: 0.4
+    });
 
     pose.onResults((results) => {
+        if (!results.poseLandmarks) return;
+        loadStatus.innerText = "● 棒人間 稼働中";
+
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+        
+        // 棒人間描画
+        drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#007bff', lineWidth: 3});
+        drawLandmarks(ctx, results.poseLandmarks, {color: '#00bfff', lineWidth: 1, radius: 3});
 
-        if (results.poseLandmarks) {
-            drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#007bff', lineWidth: 4});
-            drawLandmarks(ctx, results.poseLandmarks, {color: '#00bfff', lineWidth: 2, radius: 4});
+        // 軌道計算
+        const wrist = results.poseLandmarks[16]; 
+        const shotX = wrist.x * canvas.width;
+        const shotY = wrist.y * canvas.height;
 
-            const wrist = results.poseLandmarks[16]; 
-            const elbow = results.poseLandmarks[14]; 
-            const dx = wrist.x - elbow.x;
-            const dy = wrist.y - elbow.y;
-            const shotX = (wrist.x + dx * 0.2) * canvas.width;
-            const shotY = (wrist.y + dy * 0.2) * canvas.height;
+        if (isTracking && !video.paused) {
+            trajectory.push({x: shotX, y: shotY});
+        }
 
-            if (isTracking && !video.paused) {
-                trajectory.push({x: shotX, y: shotY});
-            }
-
-            if (trajectory.length > 1) {
-                ctx.beginPath();
-                ctx.lineWidth = 6;
-                ctx.strokeStyle = '#ffff00';
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.moveTo(trajectory[0].x, trajectory[0].y);
-                for (let i = 1; i < trajectory.length; i++) {
-                    ctx.lineTo(trajectory[i].x, trajectory[i].y);
-                }
-                ctx.stroke();
-            }
+        if (trajectory.length > 1) {
             ctx.beginPath();
-            ctx.arc(shotX, shotY, 5, 0, Math.PI * 2);
-            ctx.fillStyle = "#ffff00";
-            ctx.fill();
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#ffff00';
+            ctx.moveTo(trajectory[0].x, trajectory[0].y);
+            for (let i = 1; i < trajectory.length; i++) {
+                ctx.lineTo(trajectory[i].x, trajectory[i].y);
+            }
+            ctx.stroke();
         }
     });
 
@@ -112,55 +108,38 @@
 
     function toggleSpeed() {
         video.playbackRate = (video.playbackRate === 1.0) ? 0.5 : 1.0;
-        speedBtn.innerText = (video.playbackRate === 1.0) ? "スロー" : "等速へ";
+        document.getElementById('speedBtn').innerText = (video.playbackRate === 1.0) ? "スロー" : "等速へ";
     }
 
-    function undoTrajectory() {
-        if (trajectory.length > 0) {
-            trajectory.splice(-1);
-            pose.send({image: video});
-        }
-    }
+    function undoTrajectory() { trajectory.pop(); requestAnimationFrame(() => pose.send({image: video})); }
+    function resetAll() { trajectory = []; requestAnimationFrame(() => pose.send({image: video})); }
 
     function togglePlay() {
-        if (video.paused) { video.play(); update(); }
+        if (video.paused) { video.play(); updateFrame(); }
         else { video.pause(); }
     }
 
-    async function update() {
+    async function updateFrame() {
         if (!video.paused && !video.ended) {
             await pose.send({image: video});
-            requestAnimationFrame(update);
+            requestAnimationFrame(updateFrame);
         }
     }
 
     video.addEventListener('timeupdate', () => { seekBar.value = video.currentTime; });
     video.addEventListener('loadedmetadata', () => { seekBar.max = video.duration; });
-    
-    // シークバーを動かした時に強制的にAIを働かせる
     seekBar.addEventListener('input', () => {
         video.currentTime = seekBar.value;
         pose.send({image: video});
     });
 
-    // 動画切り替え時の安定化処理
-    document.getElementById('videoInput').addEventListener('change', async (e) => {
+    document.getElementById('videoInput').addEventListener('change', (e) => {
         if (e.target.files[0]) {
-            // 前の動画のメモリを解放
-            video.pause();
-            URL.revokeObjectURL(video.src);
-            
             video.src = URL.createObjectURL(e.target.files[0]);
-            resetAll();
-            
-            video.onloadeddata = async () => {
-                video.currentTime = 0.1; // 0秒だと認識しないことがあるため少しずらす
-                await pose.send({image: video});
-            };
+            trajectory = [];
+            loadStatus.innerText = "読込中... シークバーを動かしてね";
         }
     });
-
-    function resetAll() { trajectory = []; pose.send({image: video}); }
 </script>
 </body>
 </html>
