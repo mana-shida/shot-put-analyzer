@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>林田がつくったよ。SHOT PUT</title>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: white; margin: 0; padding: 10px; overflow-x: hidden; }
+        .app-title { font-size: 20px; font-weight: bold; color: #f1c40f; margin: 10px 0; display: inline-block; }
+        .controls { background: #333; padding: 10px; border-radius: 10px; margin-bottom: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+        .container { position: relative; display: inline-block; background: #000; width: 100%; max-width: 800px; border-radius: 8px; overflow: hidden; }
+        video { display: block; width: 100%; height: auto; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; }
+        
+        button { padding: 12px 10px; cursor: pointer; border: none; border-radius: 8px; font-weight: bold; font-size: 13px; flex: 1 1 30%; min-width: 90px; color: white; }
+        .btn-play { background: #2ecc71; }
+        .btn-speed { background: #9b59b6; }
+        .btn-track { background: #3498db; }
+        .btn-undo { background: #f39c12; } /* 1つ戻る */
+        .btn-reset { background: #e74c3c; }
+
+        .seekbar-container { width: 100%; margin: 15px 0; display: flex; align-items: center; gap: 10px; }
+        input[type="range"] { flex-grow: 1; height: 15px; accent-color: #f1c40f; }
+        .guide { color: #f1c40f; font-size: 11px; margin: 5px 0; width: 100%; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="app-title">林田(manami)がつくったよ。SHOT PUT（棒人間と軌道）</div>
+    
+    <div class="controls">
+        <input type="file" id="videoInput" accept="video/*" style="width: 100%; margin-bottom: 10px;">
+        <button id="playBtn" class="btn-play" onclick="togglePlay()">再生/停止</button>
+        <button class="btn-speed" onclick="toggleSpeed()" id="speedBtn">スロー</button>
+        <button id="trackBtn" class="btn-track" onclick="toggleTracking()">記録: OFF</button>
+        <button class="btn-undo" onclick="undoTrajectory()">1つ戻す</button>
+        <button class="btn-reset" onclick="resetAll()">全消去</button>
+        <div class="guide">「1つ戻す」を連打すれば細かく消せます</div>
+    </div>
+
+    <div class="seekbar-container">
+        <input type="range" id="seekBar" value="0" step="0.01">
+    </div>
+
+    <div class="container">
+        <video id="inputVideo" muted playsinline></video>
+        <canvas id="outputCanvas"></canvas>
+    </div>
+
+<script>
+    const video = document.getElementById('inputVideo');
+    const canvas = document.getElementById('outputCanvas');
+    const ctx = canvas.getContext('2d');
+    const seekBar = document.getElementById('seekBar');
+    const trackBtn = document.getElementById('trackBtn');
+    const speedBtn = document.getElementById('speedBtn');
+
+    let trajectory = []; 
+    let isTracking = false;
+
+    const pose = new Pose({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+    });
+
+    pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+
+    pose.onResults((results) => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+        if (results.poseLandmarks) {
+            drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#007bff', lineWidth: 4});
+            drawLandmarks(ctx, results.poseLandmarks, {color: '#00bfff', lineWidth: 2, radius: 4});
+
+            const wrist = results.poseLandmarks[16]; 
+            const elbow = results.poseLandmarks[14]; 
+            const dx = wrist.x - elbow.x;
+            const dy = wrist.y - elbow.y;
+            const shotX = (wrist.x + dx * 0.2) * canvas.width;
+            const shotY = (wrist.y + dy * 0.2) * canvas.height;
+
+            if (isTracking && !video.paused) {
+                trajectory.push({x: shotX, y: shotY});
+            }
+
+            if (trajectory.length > 1) {
+                ctx.beginPath();
+                ctx.lineWidth = 6;
+                ctx.strokeStyle = '#ffff00';
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.moveTo(trajectory[0].x, trajectory[0].y);
+                for (let i = 1; i < trajectory.length; i++) {
+                    ctx.lineTo(trajectory[i].x, trajectory[i].y);
+                }
+                ctx.stroke();
+            }
+            ctx.beginPath();
+            ctx.arc(shotX, shotY, 5, 0, Math.PI * 2);
+            ctx.fillStyle = "#ffff00";
+            ctx.fill();
+        }
+    });
+
+    function toggleTracking() {
+        isTracking = !isTracking;
+        trackBtn.innerText = isTracking ? "記録: ON" : "記録: OFF";
+        trackBtn.style.background = isTracking ? "#ff4757" : "#3498db";
+    }
+
+    function toggleSpeed() {
+        if (video.playbackRate === 1.0) {
+            video.playbackRate = 0.5;
+            speedBtn.innerText = "等速へ";
+        } else {
+            video.playbackRate = 1.0;
+            speedBtn.innerText = "スロー";
+        }
+    }
+
+    // ★ 修正ポイント: 1コマずつ消すように調整 (-1)
+    function undoTrajectory() {
+        if (trajectory.length > 0) {
+            trajectory.splice(-1); // 最後の1個だけ消す
+            // 再描画を促す
+            pose.send({image: video});
+        }
+    }
+
+    function togglePlay() {
+        if (video.paused) { video.play(); update(); }
+        else { video.pause(); }
+    }
+
+    async function update() {
+        if (!video.paused && !video.ended) {
+            await pose.send({image: video});
+            requestAnimationFrame(update);
+        }
+    }
+
+    video.addEventListener('timeupdate', () => { seekBar.value = video.currentTime; });
+    video.addEventListener('loadedmetadata', () => { seekBar.max = video.duration; });
+    seekBar.addEventListener('input', () => {
+        video.currentTime = seekBar.value;
+        pose.send({image: video});
+    });
+
+    document.getElementById('videoInput').addEventListener('change', (e) => {
+        if (e.target.files[0]) {
+            video.src = URL.createObjectURL(e.target.files[0]);
+            resetAll();
+        }
+    });
+
+    function resetAll() { trajectory = []; pose.send({image: video}); }
+</script>
+</body>
+</html>
