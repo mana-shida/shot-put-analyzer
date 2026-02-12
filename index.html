@@ -91,7 +91,7 @@
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
     });
 
-    pose.setOptions({ modelComplexity: 0, smoothLandmarks: false, minDetectionConfidence: 0.4, minTrackingConfidence: 0.4 });
+    pose.setOptions({ modelComplexity:1, smoothLandmarks: true, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
 
     pose.onResults((results) => {
         if (!results.poseLandmarks) return;
