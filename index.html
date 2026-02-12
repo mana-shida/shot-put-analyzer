@@ -1,4 +1,4 @@
-<!DOCTYPE html><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -13,14 +13,12 @@
         .container { position: relative; display: inline-block; background: #000; width: 100%; max-width: 800px; border-radius: 8px; overflow: hidden; }
         video { display: block; width: 100%; height: auto; }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; }
-        
         button { padding: 12px 10px; cursor: pointer; border: none; border-radius: 8px; font-weight: bold; font-size: 13px; flex: 1 1 30%; min-width: 90px; color: white; touch-action: manipulation; }
         .btn-play { background: #2ecc71; }
         .btn-speed { background: #9b59b6; }
         .btn-track { background: #3498db; }
         .btn-undo { background: #f39c12; }
         .btn-reset { background: #e74c3c; }
-
         .seekbar-container { width: 100%; margin: 15px 0; display: flex; align-items: center; gap: 10px; }
         input[type="range"] { flex-grow: 1; height: 15px; accent-color: #f1c40f; }
         .guide { color: #f1c40f; font-size: 11px; margin: 5px 0; width: 100%; font-weight: bold; }
@@ -28,7 +26,7 @@
 </head>
 <body>
 
-    <div class="app-title">林田(manami)がつくったよ。SHOT PUT（棒人間と軌道）</div>
+    <div class="app-title">林田(manami)がつくったよ。SHOT PUT</div>
     
     <div class="controls">
         <input type="file" id="videoInput" accept="video/*" style="width: 100%; margin-bottom: 10px;">
@@ -37,7 +35,7 @@
         <button id="trackBtn" class="btn-track" onclick="toggleTracking()">記録: OFF</button>
         <button class="btn-undo" onclick="undoTrajectory()">1つ戻る</button>
         <button class="btn-reset" onclick="resetAll()">全消去</button>
-        <div class="guide">「1つ戻る」を連打すれば細かく消せます</div>
+        <div class="guide">動画を変えたら一度停止してシークバーを動かしてね</div>
     </div>
 
     <div class="seekbar-container">
@@ -60,7 +58,6 @@
     let trajectory = []; 
     let isTracking = false;
 
-    // ★修正1: 読み込み先をより安定した最新版に固定
     const pose = new Pose({
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`
     });
@@ -114,13 +111,8 @@
     }
 
     function toggleSpeed() {
-        if (video.playbackRate === 1.0) {
-            video.playbackRate = 0.5;
-            speedBtn.innerText = "等速へ";
-        } else {
-            video.playbackRate = 1.0;
-            speedBtn.innerText = "スロー";
-        }
+        video.playbackRate = (video.playbackRate === 1.0) ? 0.5 : 1.0;
+        speedBtn.innerText = (video.playbackRate === 1.0) ? "スロー" : "等速へ";
     }
 
     function undoTrajectory() {
@@ -144,17 +136,25 @@
 
     video.addEventListener('timeupdate', () => { seekBar.value = video.currentTime; });
     video.addEventListener('loadedmetadata', () => { seekBar.max = video.duration; });
+    
+    // シークバーを動かした時に強制的にAIを働かせる
     seekBar.addEventListener('input', () => {
         video.currentTime = seekBar.value;
         pose.send({image: video});
     });
 
-    // ★修正2: 動画読み込み完了を待ってからAIを起動するように強化
-    document.getElementById('videoInput').addEventListener('change', (e) => {
+    // 動画切り替え時の安定化処理
+    document.getElementById('videoInput').addEventListener('change', async (e) => {
         if (e.target.files[0]) {
+            // 前の動画のメモリを解放
+            video.pause();
+            URL.revokeObjectURL(video.src);
+            
             video.src = URL.createObjectURL(e.target.files[0]);
             resetAll();
+            
             video.onloadeddata = async () => {
+                video.currentTime = 0.1; // 0秒だと認識しないことがあるため少しずらす
                 await pose.send({image: video});
             };
         }
