@@ -91,7 +91,7 @@
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
     });
 
-    // 設定：AIの精度を上げ、線を滑らかにしました
+    // AIの精度設定
     pose.setOptions({ 
         modelComplexity: 1, 
         smoothLandmarks: true, 
@@ -106,23 +106,18 @@
         canvas.height = video.videoHeight;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // 棒人間の描画
         drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#007bff', lineWidth: 3});
         drawLandmarks(ctx, results.poseLandmarks, {color: '#00bfff', lineWidth: 1, radius: 3});
 
-        // ★書き換えポイント：手首の位置を「拳」の方へ補正
+        // 手首の補正（拳の位置）
         const wrist = results.poseLandmarks[16]; 
         const elbow = results.poseLandmarks[14]; 
         const dx = wrist.x - elbow.x;
         const dy = wrist.y - elbow.y;
-        
-        // 拳の位置を計算（手首から少し先を狙う）
         const shotX = (wrist.x + dx * 0.3) * canvas.width;
         const shotY = (wrist.y + dy * 0.3) * canvas.height;
 
-        // ★書き換えポイント：自信がある時だけ記録して「飛び」を抑える
         if (isTracking && !video.paused) {
-            // visibility（見え方）が0.7以上の時だけ採用
             if (wrist.visibility > 0.7) { 
                 trajectory.push({x: shotX, y: shotY});
             }
@@ -132,8 +127,8 @@
             ctx.beginPath();
             ctx.lineWidth = 5;
             ctx.strokeStyle = '#ffff00';
-            ctx.lineCap = 'round'; // 角を丸く
-            ctx.lineJoin = 'round'; // 継ぎ目を滑らかに
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
             ctx.moveTo(trajectory[0].x, trajectory[0].y);
             for (let i = 1; i < trajectory.length; i++) {
                 ctx.lineTo(trajectory[i].x, trajectory[i].y);
@@ -142,27 +137,9 @@
         }
     });
 
-<script>
-    const video = document.getElementById('inputVideo');
-    const canvas = document.getElementById('outputCanvas');
-    const ctx = canvas.getContext('2d');
-    const seekBar = document.getElementById('seekBar');
-    const loadStatus = document.getElementById('loadStatus');
-
-    let trajectory = []; 
-    let isTracking = false;
-
-    const pose = new Pose({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
-    });
-
     function togglePlay() {
         if (video.paused) {
-            // スマホでの再生を強制するプロミス処理
-            const playPromise = video.play();
-            if (playPromise !== undefined) {
-                playPromise.then(() => { updateFrame(); }).catch(e => { console.log("再生失敗:", e); });
-            }
+            video.play().then(() => { updateFrame(); }).catch(e => { console.log("再生失敗:", e); });
         } else {
             video.pause();
         }
@@ -181,9 +158,16 @@
         document.getElementById('trackBtn').style.background = isTracking ? "#ff4757" : "#3498db";
     }
 
+    // スロー機能（0.25倍速 ⇆ 等速）
     function toggleSpeed() {
-        video.playbackRate = (video.playbackRate === 1.0) ? 0.25 : 1.0;
-        document.getElementById（'speedBtn'）.innerText =（video.playbackRate ニニ=1.0） ？ "スロー"："等速
+        if (video.playbackRate === 1.0) {
+            video.playbackRate = 0.25;
+            document.getElementById('speedBtn').innerText = "等速に戻す";
+            document.getElementById('speedBtn').style.background = "#e67e22";
+        } else {
+            video.playbackRate = 1.0;
+            document.getElementById('speedBtn').innerText = "スロー";
+            document.getElementById('speedBtn').style.background = "#9b59b6";
         }
     }
 
@@ -193,7 +177,7 @@
     video.addEventListener('timeupdate', () => { seekBar.value = video.currentTime; });
     video.addEventListener('loadedmetadata', () => { 
         seekBar.max = video.duration;
-        loadStatus.innerText = "準備完了！再生ボタンを押してね";
+        loadStatus.innerText = "準備完了！";
     });
     
     seekBar.addEventListener('input', () => {
@@ -205,7 +189,7 @@
         const file = e.target.files[0];
         if (file) {
             video.src = URL.createObjectURL(file);
-            video.load(); // スマホ用に明示的にロードを指示
+            video.load();
             trajectory = [];
             loadStatus.innerText = "読み込んでいます...";
         }
@@ -213,6 +197,5 @@
 </script>
 </body>
 </html>
-
 
 
