@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -18,7 +18,7 @@
         .btn-play { background: #2ecc71; }
         .btn-speed { background: #9b59b6; }
         .btn-track { background: #3498db; }
-        .btn-undo { background: #f39c12; } /* 1つ戻る */
+        .btn-undo { background: #f39c12; }
         .btn-reset { background: #e74c3c; }
 
         .seekbar-container { width: 100%; margin: 15px 0; display: flex; align-items: center; gap: 10px; }
@@ -35,9 +35,9 @@
         <button id="playBtn" class="btn-play" onclick="togglePlay()">再生/停止</button>
         <button class="btn-speed" onclick="toggleSpeed()" id="speedBtn">スロー</button>
         <button id="trackBtn" class="btn-track" onclick="toggleTracking()">記録: OFF</button>
-        <button class="btn-undo" onclick="undoTrajectory()">1つ戻す</button>
+        <button class="btn-undo" onclick="undoTrajectory()">1つ戻る</button>
         <button class="btn-reset" onclick="resetAll()">全消去</button>
-        <div class="guide">「1つ戻す」を連打すれば細かく消せます</div>
+        <div class="guide">「1つ戻る」を連打すれば細かく消せます</div>
     </div>
 
     <div class="seekbar-container">
@@ -60,8 +60,9 @@
     let trajectory = []; 
     let isTracking = false;
 
+    // ★修正1: 読み込み先をより安定した最新版に固定
     const pose = new Pose({
-        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/${file}`
     });
 
     pose.setOptions({ modelComplexity: 0, smoothLandmarks: false, minDetectionConfidence: 0.3, minTrackingConfidence: 0.3 });
@@ -122,11 +123,9 @@
         }
     }
 
-    // ★ 修正ポイント: 1コマずつ消すように調整 (-1)
     function undoTrajectory() {
         if (trajectory.length > 0) {
-            trajectory.splice(-1); // 最後の1個だけ消す
-            // 再描画を促す
+            trajectory.splice(-1);
             pose.send({image: video});
         }
     }
@@ -150,12 +149,13 @@
         pose.send({image: video});
     });
 
+    // ★修正2: 動画読み込み完了を待ってからAIを起動するように強化
     document.getElementById('videoInput').addEventListener('change', (e) => {
         if (e.target.files[0]) {
             video.src = URL.createObjectURL(e.target.files[0]);
             resetAll();
-            video.ondataavailable = () => {
-                pose.send({image: video});
+            video.onloadeddata = async () => {
+                await pose.send({image: video});
             };
         }
     });
@@ -163,8 +163,4 @@
     function resetAll() { trajectory = []; pose.send({image: video}); }
 </script>
 </body>
-
 </html>
-
-
-
