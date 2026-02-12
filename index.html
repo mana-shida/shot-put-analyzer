@@ -91,7 +91,13 @@
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
     });
 
-    pose.setOptions({ modelComplexity:1, smoothLandmarks: true, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+    // 設定：AIの精度を上げ、線を滑らかにしました
+    pose.setOptions({ 
+        modelComplexity: 1, 
+        smoothLandmarks: true, 
+        minDetectionConfidence: 0.6, 
+        minTrackingConfidence: 0.6 
+    });
 
     pose.onResults((results) => {
         if (!results.poseLandmarks) return;
@@ -99,26 +105,55 @@
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 棒人間の描画
         drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#007bff', lineWidth: 3});
         drawLandmarks(ctx, results.poseLandmarks, {color: '#00bfff', lineWidth: 1, radius: 3});
 
+        // ★書き換えポイント：手首の位置を「拳」の方へ補正
         const wrist = results.poseLandmarks[16]; 
-        const shotX = wrist.x * canvas.width;
-        const shotY = wrist.y * canvas.height;
+        const elbow = results.poseLandmarks[14]; 
+        const dx = wrist.x - elbow.x;
+        const dy = wrist.y - elbow.y;
+        
+        // 拳の位置を計算（手首から少し先を狙う）
+        const shotX = (wrist.x + dx * 0.3) * canvas.width;
+        const shotY = (wrist.y + dy * 0.3) * canvas.height;
 
+        // ★書き換えポイント：自信がある時だけ記録して「飛び」を抑える
         if (isTracking && !video.paused) {
-            trajectory.push({x: shotX, y: shotY});
+            // visibility（見え方）が0.7以上の時だけ採用
+            if (wrist.visibility > 0.7) { 
+                trajectory.push({x: shotX, y: shotY});
+            }
         }
+
         if (trajectory.length > 1) {
             ctx.beginPath();
             ctx.lineWidth = 5;
             ctx.strokeStyle = '#ffff00';
+            ctx.lineCap = 'round'; // 角を丸く
+            ctx.lineJoin = 'round'; // 継ぎ目を滑らかに
             ctx.moveTo(trajectory[0].x, trajectory[0].y);
             for (let i = 1; i < trajectory.length; i++) {
                 ctx.lineTo(trajectory[i].x, trajectory[i].y);
             }
             ctx.stroke();
         }
+    });
+
+<script>
+    const video = document.getElementById('inputVideo');
+    const canvas = document.getElementById('outputCanvas');
+    const ctx = canvas.getContext('2d');
+    const seekBar = document.getElementById('seekBar');
+    const loadStatus = document.getElementById('loadStatus');
+
+    let trajectory = []; 
+    let isTracking = false;
+
+    const pose = new Pose({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
     });
 
     function togglePlay() {
